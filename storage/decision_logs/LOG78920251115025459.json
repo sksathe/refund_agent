@@ -1,0 +1,53 @@
+{
+  "session_id": "789",
+  "customer_id": "CUST009",
+  "decision_type": "Store Credit",
+  "timestamp": "2025-11-15T02:54:59.402993Z",
+  "inputs": {
+    "reason": "I don't like the product.",
+    "order_id": "ORD017",
+    "email": "ryan.thompson@gmail.com"
+  },
+  "policy_checks": [
+    {
+      "details": {
+        "window_days": 30,
+        "order_date": "2025-02-08T10:15:00Z",
+        "days_since_order": 279
+      },
+      "passed": false,
+      "check": "time_window"
+    }
+  ],
+  "tool_calls": [
+    {
+      "tool_name": "RRVA_verify_customer_identity",
+      "parameters": {
+        "order_id": "ORD017",
+        "email": "ryan.thompson@gmail.com"
+      },
+      "output": {
+        "verified": true,
+        "customer_id": "CUST009"
+      }
+    },
+    {
+      "parameters": {
+        "order_id": "ORD017",
+        "customer_id": "CUST009",
+        "reason": "I don't like the product."
+      },
+      "output": {
+        "suggested_action": "exchange_or_store_credit",
+        "eligible": false
+      },
+      "tool_name": "RRVA_check_refund_eligibility"
+    }
+  ],
+  "outcome": {
+    "amount": 119.99,
+    "currency": "USD",
+    "action": "store_credit_offered"
+  },
+  "log_id": "LOG78920251115025459"
+}

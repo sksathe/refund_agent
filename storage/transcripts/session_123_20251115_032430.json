@@ -1,0 +1,15 @@
+{
+  "conversation": [
+    {
+      "speaker": "user",
+      "text": "Thank you."
+    },
+    {
+      "text": "You're very welcome! Is there anything specific you'd like to discuss or any questions you have about ElevenLabs? I'm here to help.",
+      "speaker": "agent"
+    }
+  ],
+  "session_id": "session_123",
+  "metadata": {},
+  "stored_at": "2025-11-15T03:24:30.749620Z"
+}

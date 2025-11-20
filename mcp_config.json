@@ -1,0 +1,26 @@
+{
+  "server": {
+    "name": "rrva-mcp-server",
+    "version": "1.0.0"
+  },
+  "storage": {
+    "base_dir": "./storage",
+    "audio_dir": "./storage/audio",
+    "transcript_dir": "./storage/transcripts",
+    "log_dir": "./storage/decision_logs",
+    "receipt_dir": "./storage/receipts"
+  },
+  "policy": {
+    "refund_window_days": 30,
+    "restocking_fee_percent": 10,
+    "allowed_conditions": ["unopened", "defective", "wrong_item"],
+    "excluded_categories": ["digital_goods", "gift_cards"]
+  },
+  "otp": {
+    "expiration_minutes": 10,
+    "max_attempts": 3,
+    "code_length": 6
+  }
+}
+
+

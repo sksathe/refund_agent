@@ -1,0 +1,17 @@
+{
+  "conversation": [
+    {
+      "speaker": "agent",
+      "text": "Hello, how can I help?"
+    },
+    {
+      "speaker": "customer",
+      "text": "I'd like a refund"
+    }
+  ],
+  "session_id": "TEST-SESSION-001",
+  "metadata": {
+    "duration_seconds": 120
+  },
+  "stored_at": "2025-11-12T06:15:54.116072Z"
+}

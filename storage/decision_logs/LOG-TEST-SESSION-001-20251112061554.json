@@ -1,0 +1,22 @@
+{
+  "session_id": "TEST-SESSION-001",
+  "customer_id": "CUST-001",
+  "decision_type": "refund_approved",
+  "timestamp": "2025-11-12T06:15:54.115185Z",
+  "inputs": {
+    "order_id": "ORD-001",
+    "reason": "Test"
+  },
+  "policy_checks": [
+    {
+      "check": "time_window",
+      "passed": true
+    }
+  ],
+  "tool_calls": [],
+  "outcome": {
+    "refund_id": "REF-TEST123",
+    "amount": 149.99
+  },
+  "log_id": "LOG-TEST-SESSION-001-20251112061554"
+}

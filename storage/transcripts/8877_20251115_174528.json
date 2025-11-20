@@ -1,0 +1,57 @@
+{
+  "conversation": [
+    {
+      "speaker": "customer",
+      "text": "I wanted other update on my"
+    },
+    {
+      "text": "refund",
+      "speaker": "customer"
+    },
+    {
+      "text": "I understand you're looking for an update on your refund. Could you please provide me with your order ID and the email address associated with your purchase? This will help me look up your details.",
+      "speaker": "agent"
+    },
+    {
+      "speaker": "customer",
+      "text": "My order ID is ORD018 and my email ID is Lisa.Garcia at direct yahoo.com."
+    },
+    {
+      "speaker": "agent",
+      "text": "Alright, Lisa. I've verified your identity. It looks like your customer ID is CUST010.\\n\\nNow, what kind of update are you looking for regarding your refund? Are you curious..."
+    },
+    {
+      "text": "Can you confirm my email ID again?",
+      "speaker": "customer"
+    },
+    {
+      "text": "Yes, I can confirm that the email ID associated with order ORD018 is Lisa.Garcia@yahoo.com. Is there anything else I can help you with regarding your refund?",
+      "speaker": "agent"
+    },
+    {
+      "text": "I just wanted to know when I'm going to get my refund.",
+      "speaker": "customer"
+    },
+    {
+      "text": "It looks like your order, ORD018, was placed quite a while ago, back in February. Our...",
+      "speaker": "agent"
+    },
+    {
+      "speaker": "customer",
+      "text": "Oh, I wanted to know if I am eligible to receive any refunds."
+    },
+    {
+      "speaker": "agent",
+      "text": "Based on our policy, your order ORD018 is unfortunately not eligible for a refund. This is because the order was placed two hundred and eighty-five days ago, which exceeds our thirty-day refund window.\\n\\nHowever, it looks like the item itself, a Smart Home Hub, is in unopened condition. While a direct refund isn't possible, our system suggests an exchange or store credit as a potential option. Would you be interested in exploring that?"
+    },
+    {
+      "text": "No, I wouldn't.",
+      "speaker": "customer"
+    }
+  ],
+  "session_id": "8877",
+  "metadata": {
+    "call_duration_seconds": 120
+  },
+  "stored_at": "2025-11-15T17:45:28.603729Z"
+}

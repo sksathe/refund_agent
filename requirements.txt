@@ -1,0 +1,12 @@
+# MCP Server Dependencies for RRVA
+# Model Context Protocol SDK
+mcp>=0.9.0
+
+# HTTP Server (for ngrok/external access)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Standard library dependencies (usually included, but listed for clarity)
+# asyncio, json, os, uuid, datetime, pathlib, typing - all built-in
+
+

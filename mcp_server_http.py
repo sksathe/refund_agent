@@ -1,0 +1,856 @@
+"""
+MCP Server for Request Resolution Voice Agent (RRVA) - HTTP/SSE Transport
+Integrates with ElevenLabs Conversational AI via HTTP (for ngrok exposure).
+
+This server provides tools for:
+- Identity verification (OTP, order ID verification)
+- Order/Transaction history retrieval
+- Refund policy evaluation
+- Refund execution
+- Audit logging and artifact storage
+"""
+
+import asyncio
+import json
+import os
+import uuid
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+# HTTP server dependencies
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
+from fastapi.responses import StreamingResponse, JSONResponse, Response
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+import time
+
+# MCP server components
+from mcp.server.models import InitializationOptions
+from mcp.server import NotificationOptions, Server
+from mcp.types import (
+    Tool,
+    TextContent,
+    ImageContent,
+    EmbeddedResource,
+    LoggingLevel,
+)
+
+# Import our tool implementations
+from tools.identity import IdentityVerifier
+from tools.orders import OrderHistoryService
+from tools.policy import RefundPolicyEngine
+from tools.refunds import RefundExecutor
+from tools.audit import AuditLogger
+
+# Initialize services
+identity_verifier = IdentityVerifier()
+order_service = OrderHistoryService()
+policy_engine = RefundPolicyEngine()
+refund_executor = RefundExecutor()
+audit_logger = AuditLogger()
+
+# Create FastAPI app
+app = FastAPI(
+    title="RRVA MCP Server",
+    description="MCP Server for Request Resolution Voice Agent",
+    version="1.0.0"
+)
+
+# Add CORS middleware for ElevenLabs
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, restrict to ElevenLabs domains
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Create MCP server instance
+mcp_server = Server("rrva-mcp-server")
+
+# Store available tools
+AVAILABLE_TOOLS = []
+
+
+def get_tools() -> List[Tool]:
+    """Get list of available tools."""
+    return [
+        Tool(
+            name="verify_customer_identity",
+            description="Verify customer identity using order ID and contact information (email/phone). Returns verification status and customer ID if successful.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "order_id": {
+                        "type": "string",
+                        "description": "Order ID or order number provided by customer"
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "Customer email address (optional if phone provided)"
+                    },
+                    "phone": {
+                        "type": "string",
+                        "description": "Customer phone number (optional if email provided)"
+                    },
+                    "last_four_digits": {
+                        "type": "string",
+                        "description": "Last 4 digits of payment card for additional verification (optional)"
+                    }
+                },
+                "required": ["order_id"]
+            }
+        ),
+        Tool(
+            name="send_otp",
+            description="Send OTP (One-Time Password) to customer's registered email or phone for identity verification.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "customer_id": {
+                        "type": "string",
+                        "description": "Customer ID from identity verification"
+                    },
+                    "method": {
+                        "type": "string",
+                        "enum": ["email", "sms"],
+                        "description": "Delivery method for OTP"
+                    }
+                },
+                "required": ["customer_id", "method"]
+            }
+        ),
+        Tool(
+            name="verify_otp",
+            description="Verify the OTP code provided by the customer.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "customer_id": {
+                        "type": "string",
+                        "description": "Customer ID"
+                    },
+                    "otp_code": {
+                        "type": "string",
+                        "description": "OTP code provided by customer"
+                    }
+                },
+                "required": ["customer_id", "otp_code"]
+            }
+        ),
+        Tool(
+            name="get_order_history",
+            description="Retrieve order history for a verified customer. Returns order details, transaction history, and fulfillment status.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "customer_id": {
+                        "type": "string",
+                        "description": "Verified customer ID"
+                    },
+                    "order_id": {
+                        "type": "string",
+                        "description": "Specific order ID to retrieve (optional, returns all if not provided)"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of orders to return (default: 10)"
+                    }
+                },
+                "required": ["customer_id"]
+            }
+        ),
+        Tool(
+            name="get_transaction_history",
+            description="Retrieve transaction/payment history for a specific order.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "order_id": {
+                        "type": "string",
+                        "description": "Order ID"
+                    },
+                    "customer_id": {
+                        "type": "string",
+                        "description": "Verified customer ID"
+                    }
+                },
+                "required": ["order_id", "customer_id"]
+            }
+        ),
+        Tool(
+            name="check_refund_eligibility",
+            description="Evaluate refund eligibility for an order based on policy rules (time window, condition, channel, etc.). Returns eligibility status, reason, and suggested action.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "order_id": {
+                        "type": "string",
+                        "description": "Order ID to check"
+                    },
+                    "customer_id": {
+                        "type": "string",
+                        "description": "Verified customer ID"
+                    },
+                    "item_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Specific item IDs to refund (optional, refunds entire order if not provided)"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "Customer-provided reason for refund request"
+                    }
+                },
+                "required": ["order_id", "customer_id"]
+            }
+        ),
+        Tool(
+            name="execute_refund",
+            description="Execute a refund for an eligible order. Creates refund record, processes payment reversal, and generates receipt.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "order_id": {
+                        "type": "string",
+                        "description": "Order ID"
+                    },
+                    "customer_id": {
+                        "type": "string",
+                        "description": "Verified customer ID"
+                    },
+                    "item_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Specific item IDs to refund (optional)"
+                    },
+                    "refund_amount": {
+                        "type": "number",
+                        "description": "Refund amount (optional, uses calculated amount if not provided)"
+                    },
+                    "refund_method": {
+                        "type": "string",
+                        "enum": ["original_payment", "store_credit"],
+                        "description": "Refund method preference"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "Refund reason for audit"
+                    }
+                },
+                "required": ["order_id", "customer_id", "reason"]
+            }
+        ),
+        Tool(
+            name="log_decision",
+            description="Log a decision event for audit purposes. Stores decision log with inputs, policy checks, and outcome.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "session_id": {
+                        "type": "string",
+                        "description": "Session/Interaction ID"
+                    },
+                    "customer_id": {
+                        "type": "string",
+                        "description": "Customer ID"
+                    },
+                    "decision_type": {
+                        "type": "string",
+                        "enum": ["refund_approved", "refund_denied", "partial_refund", "escalated"],
+                        "description": "Type of decision made"
+                    },
+                    "inputs": {
+                        "type": "object",
+                        "description": "Input parameters used in decision"
+                    },
+                    "policy_checks": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Policy evaluation results"
+                    },
+                    "outcome": {
+                        "type": "object",
+                        "description": "Final outcome and actions taken"
+                    },
+                    "tool_calls": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Tool calls made during decision process"
+                    }
+                },
+                "required": ["session_id", "customer_id", "decision_type", "outcome"]
+            }
+        ),
+        Tool(
+            name="store_artifact",
+            description="Store audit artifacts (audio, transcript, decision log, receipt) to persistent storage.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "session_id": {
+                        "type": "string",
+                        "description": "Session ID"
+                    },
+                    "artifact_type": {
+                        "type": "string",
+                        "enum": ["audio", "transcript", "decision_log", "receipt"],
+                        "description": "Type of artifact"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Artifact content (base64 for audio, JSON/text for others)"
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "description": "Additional metadata (timestamps, customer_id, etc.)"
+                    }
+                },
+                "required": ["session_id", "artifact_type", "content"]
+            }
+        ),
+        Tool(
+            name="get_refund_receipt",
+            description="Retrieve refund receipt for a completed refund transaction.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "refund_id": {
+                        "type": "string",
+                        "description": "Refund transaction ID"
+                    },
+                    "order_id": {
+                        "type": "string",
+                        "description": "Order ID"
+                    }
+                },
+                "required": ["refund_id"]
+            }
+        ),
+        Tool(
+            name="end_call",
+            description="[SYSTEM TOOL - DO NOT ANNOUNCE] Internal function to finalize call session. Silently logs decision and stores transcript. Call this automatically at the end of every customer interaction without mentioning it to the customer.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "session_id": {
+                        "type": "string",
+                        "description": "Session/Interaction ID"
+                    },
+                    "customer_id": {
+                        "type": "string",
+                        "description": "Customer ID (if verified)"
+                    },
+                    "decision_type": {
+                        "type": "string",
+                        "enum": ["refund_approved", "refund_denied", "partial_refund", "escalated", "no_action"],
+                        "description": "Type of decision made during the call"
+                    },
+                    "transcript": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "speaker": {"type": "string", "enum": ["agent", "customer"]},
+                                "text": {"type": "string"}
+                            },
+                            "required": ["speaker", "text"]
+                        },
+                        "description": "Full conversation transcript with speaker labels"
+                    },
+                    "inputs": {
+                        "type": "object",
+                        "description": "Input parameters used in decision (order_id, reason, etc.)"
+                    },
+                    "policy_checks": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Policy evaluation results (if applicable)"
+                    },
+                    "outcome": {
+                        "type": "object",
+                        "description": "Final outcome and actions taken (refund_id, amount, status, etc.)"
+                    },
+                    "tool_calls": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Tool calls made during the session"
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "description": "Additional metadata (call_duration_seconds, call_reason, etc.)"
+                    }
+                },
+                "required": ["session_id", "decision_type", "transcript"]
+            }
+        )
+    ]
+
+
+# Initialize tools
+AVAILABLE_TOOLS = get_tools()
+
+
+async def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle tool calls from the voice agent."""
+    try:
+        if name == "verify_customer_identity":
+            result = await identity_verifier.verify(
+                order_id=arguments.get("order_id"),
+                email=arguments.get("email"),
+                phone=arguments.get("phone"),
+                last_four_digits=arguments.get("last_four_digits")
+            )
+            return result
+        
+        elif name == "send_otp":
+            result = await identity_verifier.send_otp(
+                customer_id=arguments["customer_id"],
+                method=arguments["method"]
+            )
+            return result
+        
+        elif name == "verify_otp":
+            result = await identity_verifier.verify_otp(
+                customer_id=arguments["customer_id"],
+                otp_code=arguments["otp_code"]
+            )
+            return result
+        
+        elif name == "get_order_history":
+            result = await order_service.get_order_history(
+                customer_id=arguments["customer_id"],
+                order_id=arguments.get("order_id"),
+                limit=arguments.get("limit", 10)
+            )
+            return result
+        
+        elif name == "get_transaction_history":
+            result = await order_service.get_transaction_history(
+                order_id=arguments["order_id"],
+                customer_id=arguments["customer_id"]
+            )
+            return result
+        
+        elif name == "check_refund_eligibility":
+            result = await policy_engine.check_eligibility(
+                order_id=arguments["order_id"],
+                customer_id=arguments["customer_id"],
+                item_ids=arguments.get("item_ids"),
+                reason=arguments.get("reason")
+            )
+            return result
+        
+        elif name == "execute_refund":
+            result = await refund_executor.execute(
+                order_id=arguments["order_id"],
+                customer_id=arguments["customer_id"],
+                item_ids=arguments.get("item_ids"),
+                refund_amount=arguments.get("refund_amount"),
+                refund_method=arguments.get("refund_method", "original_payment"),
+                reason=arguments["reason"]
+            )
+            return result
+        
+        elif name == "log_decision":
+            result = await audit_logger.log_decision(
+                session_id=arguments["session_id"],
+                customer_id=arguments["customer_id"],
+                decision_type=arguments["decision_type"],
+                inputs=arguments.get("inputs", {}),
+                policy_checks=arguments.get("policy_checks", []),
+                outcome=arguments["outcome"],
+                tool_calls=arguments.get("tool_calls", [])
+            )
+            return result
+        
+        elif name == "store_artifact":
+            result = await audit_logger.store_artifact(
+                session_id=arguments["session_id"],
+                artifact_type=arguments["artifact_type"],
+                content=arguments["content"],
+                metadata=arguments.get("metadata", {})
+            )
+            return result
+        
+        elif name == "get_refund_receipt":
+            result = await refund_executor.get_receipt(
+                refund_id=arguments["refund_id"],
+                order_id=arguments.get("order_id")
+            )
+            return result
+        
+        elif name == "end_call":
+            # Automatically log decision and store transcript when call ends
+            session_id = arguments["session_id"]
+            customer_id = arguments.get("customer_id", "unknown")
+            decision_type = arguments["decision_type"]
+            transcript = arguments["transcript"]
+            
+            results = {
+                "session_id": session_id,
+                "actions_taken": []
+            }
+            
+            # 1. Store transcript
+            try:
+                transcript_content = json.dumps({
+                    "conversation": transcript
+                })
+                transcript_result = await audit_logger.store_artifact(
+                    session_id=session_id,
+                    artifact_type="transcript",
+                    content=transcript_content,
+                    metadata=arguments.get("metadata", {})
+                )
+                results["actions_taken"].append("transcript_stored")
+                results["transcript_path"] = transcript_result.get("file_path")
+            except Exception as e:
+                results["transcript_error"] = str(e)
+            
+            # 2. Log decision
+            try:
+                decision_result = await audit_logger.log_decision(
+                    session_id=session_id,
+                    customer_id=customer_id,
+                    decision_type=decision_type,
+                    inputs=arguments.get("inputs", {}),
+                    policy_checks=arguments.get("policy_checks", []),
+                    outcome=arguments.get("outcome", {}),
+                    tool_calls=arguments.get("tool_calls", [])
+                )
+                results["actions_taken"].append("decision_logged")
+                results["log_id"] = decision_result.get("log_id")
+                results["log_path"] = decision_result.get("log_path")
+            except Exception as e:
+                results["decision_log_error"] = str(e)
+            
+            # 3. Store receipt if refund was processed
+            if decision_type == "refund_approved" and arguments.get("outcome", {}).get("refund_id"):
+                try:
+                    receipt = await refund_executor.get_receipt(
+                        refund_id=arguments["outcome"]["refund_id"]
+                    )
+                    receipt_content = json.dumps(receipt)
+                    receipt_result = await audit_logger.store_artifact(
+                        session_id=session_id,
+                        artifact_type="receipt",
+                        content=receipt_content,
+                        metadata=arguments.get("metadata", {})
+                    )
+                    results["actions_taken"].append("receipt_stored")
+                    results["receipt_path"] = receipt_result.get("file_path")
+                except Exception as e:
+                    results["receipt_error"] = str(e)
+            
+            results["success"] = True
+            results["message"] = f"Call finalized. Actions: {', '.join(results['actions_taken'])}"
+            return results
+        
+        else:
+            return {"error": f"Unknown tool: {name}"}
+    
+    except Exception as e:
+        return {"error": str(e), "tool": name}
+
+
+# HTTP Endpoints
+
+@app.get("/")
+async def root():
+    """Health check endpoint."""
+    return {
+        "status": "healthy",
+        "server": "rrva-mcp-server",
+        "version": "1.0.0",
+        "tools_count": len(AVAILABLE_TOOLS)
+    }
+
+
+@app.get("/health")
+async def health():
+    """Health check endpoint."""
+    return {"status": "healthy"}
+
+
+@app.get("/tools")
+async def list_tools_endpoint():
+    """List all available tools (MCP-compatible format)."""
+    return {
+        "tools": [
+            {
+                "name": tool.name,
+                "description": tool.description,
+                "inputSchema": tool.inputSchema
+            }
+            for tool in AVAILABLE_TOOLS
+        ]
+    }
+
+
+@app.post("/tools/call")
+async def call_tool_endpoint(request: Request):
+    """Call a tool (MCP-compatible endpoint)."""
+    try:
+        body = await request.json()
+        tool_name = body.get("name")
+        arguments = body.get("arguments", {})
+        
+        if not tool_name:
+            raise HTTPException(status_code=400, detail="Tool name is required")
+        
+        # Verify tool exists
+        tool_exists = any(tool.name == tool_name for tool in AVAILABLE_TOOLS)
+        if not tool_exists:
+            raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found")
+        
+        # Call the tool
+        result = await call_tool(tool_name, arguments)
+        
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(result, indent=2)
+                }
+            ]
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/mcp")
+async def mcp_endpoint(request: Request):
+    """MCP JSON-RPC endpoint."""
+    try:
+        body = await request.json()
+        method = body.get("method")
+        params = body.get("params", {})
+        request_id = body.get("id")
+        
+        if method == "tools/list":
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "tools": [
+                        {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "inputSchema": tool.inputSchema
+                        }
+                        for tool in AVAILABLE_TOOLS
+                    ]
+                }
+            }
+        
+        elif method == "tools/call":
+            tool_name = params.get("name")
+            arguments = params.get("arguments", {})
+            
+            if not tool_name:
+                return {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {
+                        "code": -32602,
+                        "message": "Invalid params",
+                        "data": "Tool name is required"
+                    }
+                }
+            
+            result = await call_tool(tool_name, arguments)
+            
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(result, indent=2)
+                        }
+                    ]
+                }
+            }
+        
+        elif method == "initialize":
+            # Handle initialization
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {
+                        "tools": {}
+                    },
+                    "serverInfo": {
+                        "name": "rrva-mcp-server",
+                        "version": "1.0.0"
+                    }
+                }
+            }
+        
+        else:
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32601,
+                    "message": "Method not found",
+                    "data": f"Unknown method: {method}"
+                }
+            }
+    
+    except Exception as e:
+        return {
+            "jsonrpc": "2.0",
+            "id": request_id if 'request_id' in locals() else None,
+            "error": {
+                "code": -32603,
+                "message": "Internal error",
+                "data": str(e)
+            }
+        }
+
+
+@app.get("/sse")
+async def sse_endpoint(request: Request):
+    """Server-Sent Events endpoint for STREAMABLE_HTTP transport."""
+    async def event_stream():
+        try:
+            # Send initial connection message
+            yield f"data: {json.dumps({'type': 'connection', 'status': 'connected'})}\n\n"
+            
+            # Keep connection alive
+            while True:
+                await asyncio.sleep(30)  # Send keepalive every 30 seconds
+                yield f": keepalive\n\n"
+        except asyncio.CancelledError:
+            pass
+    
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+@app.post("/sse")
+async def sse_post_endpoint(request: Request):
+    """Handle POST requests for SSE transport."""
+    try:
+        body = await request.json()
+        method = body.get("method")
+        params = body.get("params", {})
+        request_id = body.get("id")
+        
+        if method == "initialize":
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {
+                        "tools": {}
+                    },
+                    "serverInfo": {
+                        "name": "rrva-mcp-server",
+                        "version": "1.0.0"
+                    }
+                }
+            }
+        
+        elif method == "tools/list":
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "tools": [
+                        {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "inputSchema": tool.inputSchema
+                        }
+                        for tool in AVAILABLE_TOOLS
+                    ]
+                }
+            }
+        
+        elif method == "tools/call":
+            tool_name = params.get("name")
+            arguments = params.get("arguments", {})
+            
+            if not tool_name:
+                return {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {
+                        "code": -32602,
+                        "message": "Invalid params",
+                        "data": "Tool name is required"
+                    }
+                }
+            
+            result = await call_tool(tool_name, arguments)
+            
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(result, indent=2)
+                        }
+                    ]
+                }
+            }
+        
+        else:
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32601,
+                    "message": "Method not found",
+                    "data": f"Unknown method: {method}"
+                }
+            }
+    
+    except Exception as e:
+        return {
+            "jsonrpc": "2.0",
+            "id": request_id if 'request_id' in locals() else None,
+            "error": {
+                "code": -32603,
+                "message": "Internal error",
+                "data": str(e)
+            }
+        }
+
+
+if __name__ == "__main__":
+    import sys
+    
+    # Get port from environment or use default
+    port = int(os.getenv("PORT", 8000))
+    host = os.getenv("HOST", "0.0.0.0")
+    
+    print(f"Starting RRVA MCP Server on http://{host}:{port}")
+    print(f"Available tools: {len(AVAILABLE_TOOLS)}")
+    print(f"Health check: http://{host}:{port}/health")
+    print(f"Tools list: http://{host}:{port}/tools")
+    print(f"MCP endpoint: http://{host}:{port}/mcp")
+    print(f"SSE endpoint: http://{host}:{port}/sse (for STREAMABLE_HTTP)")
+    
+    uvicorn.run(app, host=host, port=port)
+

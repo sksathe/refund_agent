@@ -1,0 +1,53 @@
+{
+  "session_id": "8877",
+  "customer_id": "CUST009",
+  "decision_type": "refund_request",
+  "timestamp": "2025-11-15T02:43:07.690611Z",
+  "inputs": {
+    "email": "ryan.thompson@gmail.com",
+    "reason": "I just don't like what I have",
+    "order_id": "ORD017"
+  },
+  "policy_checks": [
+    {
+      "passed": false,
+      "check": "time_window",
+      "details": {
+        "order_date": "2025-02-08T10:15:00Z",
+        "days_since_order": 279,
+        "window_days": 30
+      }
+    },
+    {
+      "check": "order_status",
+      "details": {
+        "status": "delivered"
+      },
+      "passed": true
+    },
+    {
+      "check": "item_eligibility",
+      "details": {
+        "item_checks": [
+          {
+            "product_name": "Wireless Charging Pad",
+            "refund_amount": 119.99,
+            "issues": [],
+            "eligible": true,
+            "condition": "unopened",
+            "item_id": "ITEM018"
+          }
+        ]
+      },
+      "passed": true
+    }
+  ],
+  "tool_calls": [],
+  "outcome": {
+    "status": "completed",
+    "refund_id": "REFA17D01BA",
+    "refund_amount": 119.99,
+    "refund_method": "store_credit"
+  },
+  "log_id": "LOG887720251115024307"
+}

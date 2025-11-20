@@ -1,0 +1,28 @@
+{
+  "session_id": "789",
+  "customer_id": "CUST010",
+  "decision_type": "refund_denied",
+  "timestamp": "2025-11-15T17:53:08.415053Z",
+  "inputs": {
+    "order_id": "ORD-018",
+    "email": "lisa.garcia@yahoo.com",
+    "reason": "Don't like the product"
+  },
+  "policy_checks": [
+    {
+      "details": {
+        "days_since_order": 285,
+        "order_date": "2025-02-03T16:45:00Z",
+        "window_days": 30
+      },
+      "passed": false,
+      "check": "time_window"
+    }
+  ],
+  "tool_calls": [],
+  "outcome": {
+    "reason": "Order outside return window",
+    "status": "denied"
+  },
+  "log_id": "LOG78920251115175308"
+}

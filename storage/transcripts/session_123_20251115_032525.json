@@ -1,0 +1,39 @@
+{
+  "conversation": [
+    {
+      "speaker": "user",
+      "text": "I would like to refund my order."
+    },
+    {
+      "speaker": "agent",
+      "text": "Okay, I can certainly help you with that. To get started, I'll need your order ID and either your email address or phone number associated with the order to verify your identity. Could you please provide those..."
+    },
+    {
+      "text": "Perfect. So my order ID is ORD017 and my email is ryan.thompson at gmail.com.",
+      "speaker": "user"
+    },
+    {
+      "speaker": "agent",
+      "text": "Great, thanks Ryan! I've verified your identity. It looks like you're good to go.\n\nNow, could you tell me the reason for the refund request? And are you looking to refund the entire order,..."
+    },
+    {
+      "speaker": "user",
+      "text": "I don't like the product."
+    },
+    {
+      "text": "I understand. It looks like your order for the Wireless Charging Pad is eligible for a full refund of one hundred nineteen dollars and ninety-nine cents.\n\nWould you like me to go ahead and process that for you?",
+      "speaker": "agent"
+    },
+    {
+      "text": "Yes please",
+      "speaker": "user"
+    },
+    {
+      "text": "Alright, the refund for one hundred nineteen dollars and ninety-nine cents has been successfully processed for your order ORD zero one seven. You should see the credit reflected in your account within three to five business days.\n\nIs there anything else I can assist you with today, Ryan?",
+      "speaker": "agent"
+    }
+  ],
+  "session_id": "session_123",
+  "metadata": {},
+  "stored_at": "2025-11-15T03:25:25.365055Z"
+}

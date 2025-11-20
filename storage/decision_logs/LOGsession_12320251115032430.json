@@ -1,0 +1,11 @@
+{
+  "session_id": "session_123",
+  "customer_id": "unknown",
+  "decision_type": "unknown",
+  "timestamp": "2025-11-15T03:24:30.753105Z",
+  "inputs": {},
+  "policy_checks": [],
+  "tool_calls": [],
+  "outcome": {},
+  "log_id": "LOGsession_12320251115032430"
+}

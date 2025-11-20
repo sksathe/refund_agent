@@ -1,0 +1,75 @@
+{
+  "conversation": [
+    {
+      "speaker": "customer",
+      "text": "I would like a refund."
+    },
+    {
+      "speaker": "agent",
+      "text": "I can certainly help you with that. To get started, could you please provide me with the order ID for the purchase you'd like to refund?"
+    },
+    {
+      "text": "Um yeah it is ORD018.",
+      "speaker": "customer"
+    },
+    {
+      "speaker": "agent",
+      "text": "Got it. And could you also provide either the email address or phone number associated with that order, please? This..."
+    },
+    {
+      "speaker": "customer",
+      "text": "Um yeah sure uh it is lisa dot garcia at yahoo dot com"
+    },
+    {
+      "speaker": "agent",
+      "text": "Thanks, Lisa. Just to confirm, your email is lisa.garcia@yahoo.com and your order ID is ORD018. Is that right?"
+    },
+    {
+      "text": "Yes",
+      "speaker": "customer"
+    },
+    {
+      "speaker": "agent",
+      "text": "Great, I've verified your identity, Lisa. Now, could you tell me the reason for the refund request?"
+    },
+    {
+      "speaker": "customer",
+      "text": "Um it's not just working."
+    },
+    {
+      "speaker": "agent",
+      "text": "I understand that can be frustrating. Could you tell me a little more about what's not working with the product? Knowing the specifics will help me..."
+    },
+    {
+      "speaker": "customer",
+      "text": "I don't like"
+    },
+    {
+      "text": "I hear you. Sometimes things just don't meet expectations. Based on what you've told me, it sounds like you'd like to proceed with a refund for order ORD018 because the product isn't working as you'd hoped. Is that correct?",
+      "speaker": "agent"
+    },
+    {
+      "text": "the product yes",
+      "speaker": "customer"
+    },
+    {
+      "text": "I've checked on the refund eligibility for your order, and it looks like it falls outside of our thirty-day return window. The order was placed two hundred and eighty-four days ago. Because of this, a direct refund isn't possible. However, we might be able to offer an exchange or store credit. Would you be interested in exploring those options?",
+      "speaker": "agent"
+    },
+    {
+      "speaker": "customer",
+      "text": "I would like to get the store credit please"
+    },
+    {
+      "text": "Alright, Lisa. I've processed a store credit for you in the amount of two hundred fifty-nine dollars and ninety-nine cents. You should receive a confirmation with the details shortly. Is there anything else I can help you with today?",
+      "speaker": "agent"
+    },
+    {
+      "text": "Marking please, thank you.",
+      "speaker": "customer"
+    }
+  ],
+  "session_id": "8877",
+  "metadata": {},
+  "stored_at": "2025-11-15T04:06:53.767268Z"
+}

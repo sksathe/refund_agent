@@ -1,0 +1,38 @@
+{
+  "conversation": [
+    {
+      "speaker": "customer",
+      "text": "Hi, I would like to refund my order. My order ID is ORD017."
+    },
+    {
+      "text": "Alright, I can certainly help you with that. To get started, could you please provide me with either your email address or the last four digits of the payment...",
+      "speaker": "agent"
+    },
+    {
+      "text": "It is ryan.thompson at gmail.com.",
+      "speaker": "customer"
+    },
+    {
+      "text": "Great, thanks Ryan. I've verified your identity. Now, before we go ahead with the refund, could you tell me the reason for the return?",
+      "speaker": "agent"
+    },
+    {
+      "text": "I don't like the product.",
+      "speaker": "customer"
+    },
+    {
+      "speaker": "agent",
+      "text": "Thanks for letting me know. It looks like your order was placed 279 days ago, and unfortunately, our refund policy only covers returns within 30 days of the purchase date. Because of..."
+    },
+    {
+      "speaker": "customer",
+      "text": "I would like store credit instead, thank you."
+    }
+  ],
+  "session_id": "789",
+  "metadata": {
+    "call_duration_seconds": 120,
+    "call_reason": "refund_request"
+  },
+  "stored_at": "2025-11-15T02:54:59.400489Z"
+}

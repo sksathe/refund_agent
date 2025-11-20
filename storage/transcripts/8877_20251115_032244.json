@@ -1,0 +1,35 @@
+{
+  "conversation": [
+    {
+      "text": "I would like to refund my order, please.",
+      "speaker": "customer"
+    },
+    {
+      "text": "I can certainly help you with that. Could you please provide me with your order ID and the email address or phone...",
+      "speaker": "agent"
+    },
+    {
+      "speaker": "customer",
+      "text": "Yeah, my order ID is ORD017 and the email is ryan.thompson at gmail.com."
+    },
+    {
+      "text": "Alright, Ryan, I've verified your identity. Now, before we proceed with the refund, could you tell me the reason for the refund request? Also, are you looking to refund specific items...",
+      "speaker": "agent"
+    },
+    {
+      "text": "I just don't like the product and yeah.",
+      "speaker": "customer"
+    },
+    {
+      "speaker": "agent",
+      "text": "Thanks for letting me know, Ryan. I've checked the refund eligibility for your order, and it..."
+    },
+    {
+      "text": "That's a refund request?",
+      "speaker": "customer"
+    }
+  ],
+  "session_id": "8877",
+  "metadata": {},
+  "stored_at": "2025-11-15T03:22:44.828836Z"
+}

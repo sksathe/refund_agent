@@ -1,0 +1,51 @@
+{
+  "conversation": [
+    {
+      "speaker": "user",
+      "text": "refund my order ORD-018"
+    },
+    {
+      "text": "I can certainly help you with that! To get started, I'll need to verify your identity. Could you please provide me with either your email address or phone number associated with the order?",
+      "speaker": "agent"
+    },
+    {
+      "text": "lisa.garcia@yahoo.com",
+      "speaker": "user"
+    },
+    {
+      "text": "Thanks, Lisa. Just to confirm, is the email address lisa.garcia@yahoo.com correct?",
+      "speaker": "agent"
+    },
+    {
+      "text": "yes",
+      "speaker": "user"
+    },
+    {
+      "speaker": "agent",
+      "text": "Great, thanks for confirming! I've verified your identity, Lisa. Now, to process the refund for order ORD-018, could you tell me the reason for the refund?"
+    },
+    {
+      "speaker": "user",
+      "text": "dont like the product"
+    },
+    {
+      "speaker": "agent",
+      "text": "I've checked the refund eligibility for order ORD-018, and it looks like it falls outside our 30-day return window, as the order was placed 285 days ago. Because of this, I'm unable to process a direct refund.\n\nHowever, we might be able to offer an exchange or store credit. Would you be interested in exploring those options?"
+    },
+    {
+      "speaker": "user",
+      "text": "no thanks"
+    },
+    {
+      "text": "Alright, I understand. Is there anything else I can help you with today?",
+      "speaker": "agent"
+    },
+    {
+      "text": "nope, thanks",
+      "speaker": "user"
+    }
+  ],
+  "session_id": "789",
+  "metadata": {},
+  "stored_at": "2025-11-15T17:53:19.933970Z"
+}
