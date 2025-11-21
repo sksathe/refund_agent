@@ -102,7 +102,7 @@ The system uses a secure multi-step verification process:
    → Enables access to order/refund operations
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -172,7 +172,7 @@ This will test:
 - Refund execution
 - Audit logging
 
-## 📡 API Reference
+## API Reference
 
 ### Available Tools
 
@@ -316,16 +316,7 @@ curl -X POST http://localhost:8000/tools/call \
   }'
 ```
 
-## 🔧 Configuration
-
-### Environment Variables
-
-| Variable | Required | Description | Default |
-|----------|----------|-------------|---------|
-| `RESEND_API_KEY` | Yes | Resend API key for sending OTP emails | - |
-| `RESEND_FROM_EMAIL` | No | Sender email address | `onboarding@resend.dev` |
-| `PORT` | No | HTTP server port | `8000` |
-| `HOST` | No | HTTP server host | `0.0.0.0` |
+## Configuration
 
 ### Policy Configuration
 
