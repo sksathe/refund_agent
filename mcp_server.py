@@ -18,6 +18,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
+
 from mcp.server.models import InitializationOptions
 from mcp.server import NotificationOptions, Server
 from mcp.server.stdio import stdio_server
@@ -53,8 +57,8 @@ async def list_tools() -> List[Tool]:
     """List all available tools for the voice agent."""
     return [
         Tool(
-            name="verify_customer_identity",
-            description="Verify customer identity using order ID and contact information (email/phone). Returns verification status and customer ID if successful.",
+            name="verify_by_order_and_name",
+            description="Step 1: Verify customer by order ID and name. If name matches, returns customer_id and email for OTP sending. Use this first before sending OTP.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -62,39 +66,65 @@ async def list_tools() -> List[Tool]:
                         "type": "string",
                         "description": "Order ID or order number provided by customer"
                     },
+                    "name": {
+                        "type": "string",
+                        "description": "Customer name to verify against the order"
+                    }
+                },
+                "required": ["order_id", "name"]
+            }
+        ),
+        Tool(
+            name="verify_customer_identity",
+            description="Step 3: Final verification using order ID, customer ID, and OTP code. Use this after verify_by_order_and_name and verify_otp. Requires OTP verification.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "order_id": {
+                        "type": "string",
+                        "description": "Order ID or order number provided by customer"
+                    },
+                    "customer_id": {
+                        "type": "string",
+                        "description": "Customer ID from verify_by_order_and_name"
+                    },
+                    "otp_code": {
+                        "type": "string",
+                        "description": "OTP code provided by customer (required)"
+                    },
                     "email": {
                         "type": "string",
-                        "description": "Customer email address (optional if phone provided)"
+                        "description": "Deprecated - kept for backward compatibility"
                     },
                     "phone": {
                         "type": "string",
-                        "description": "Customer phone number (optional if email provided)"
+                        "description": "Deprecated - kept for backward compatibility"
                     },
                     "last_four_digits": {
                         "type": "string",
-                        "description": "Last 4 digits of payment card for additional verification (optional)"
+                        "description": "Deprecated - kept for backward compatibility"
                     }
                 },
-                "required": ["order_id"]
+                "required": ["order_id", "customer_id", "otp_code"]
             }
         ),
         Tool(
             name="send_otp",
-            description="Send OTP (One-Time Password) to customer's registered email or phone for identity verification.",
+            description="Step 2: Send OTP (One-Time Password) to customer's registered email using Resend API. Use this after verify_by_order_and_name succeeds.",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "customer_id": {
                         "type": "string",
-                        "description": "Customer ID from identity verification"
+                        "description": "Customer ID from verify_by_order_and_name"
                     },
                     "method": {
                         "type": "string",
                         "enum": ["email", "sms"],
-                        "description": "Delivery method for OTP"
+                        "description": "Delivery method for OTP (currently only 'email' is supported via Resend)"
                     }
                 },
-                "required": ["customer_id", "method"]
+                "required": ["customer_id"]
             }
         ),
         Tool(
@@ -368,19 +398,28 @@ async def list_tools() -> List[Tool]:
 async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
     """Handle tool calls from the voice agent."""
     try:
-        if name == "verify_customer_identity":
+        if name == "verify_by_order_and_name":
+            result = await identity_verifier.verify_by_order_and_name(
+                order_id=arguments.get("order_id"),
+                name=arguments.get("name")
+            )
+            return [TextContent(type="text", text=json.dumps(result, indent=2))]
+        
+        elif name == "verify_customer_identity":
             result = await identity_verifier.verify(
                 order_id=arguments.get("order_id"),
-                email=arguments.get("email"),
-                phone=arguments.get("phone"),
-                last_four_digits=arguments.get("last_four_digits")
+                customer_id=arguments.get("customer_id"),
+                otp_code=arguments.get("otp_code"),
+                email=arguments.get("email"),  # Deprecated but kept for compatibility
+                phone=arguments.get("phone"),  # Deprecated but kept for compatibility
+                last_four_digits=arguments.get("last_four_digits")  # Deprecated but kept for compatibility
             )
             return [TextContent(type="text", text=json.dumps(result, indent=2))]
         
         elif name == "send_otp":
             result = await identity_verifier.send_otp(
                 customer_id=arguments["customer_id"],
-                method=arguments["method"]
+                method=arguments.get("method", "email")  # Default to email
             )
             return [TextContent(type="text", text=json.dumps(result, indent=2))]
         

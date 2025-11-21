@@ -4,10 +4,10 @@ This document lists all available sample customers and their orders for testing 
 
 ## Customer List
 
-### CUST-001: Michael Chen
-- **Email**: michael.chen@email.com
+### CUST-001: Sanjyot Sathe
+- **Email**: sanjyot.sathe@gmail.com
 - **Phone**: +1-555-0123
-- **Name**: Michael Chen
+- **Name**: Sanjyot Sathe
 - **Orders**: ORD-001, ORD-002, ORD-004
 - **Last 4 Digits**: 4532
 
@@ -194,15 +194,15 @@ To verify a customer:
 ## Test Scenarios
 
 ### Scenario 1: Eligible Refund (Within 30 Days)
-- **Customer**: Michael Chen
+- **Customer**: Sanjyot Sathe
 - **Order**: ORD-001 ($149.99, Jan 15, 2025)
-- **Email**: michael.chen@email.com
+- **Email**: sanjyot.sathe@gmail.com
 - **Status**: ✅ Eligible (within 30-day window, unopened items)
 
 ### Scenario 2: Partial Refund (Used Item)
-- **Customer**: Michael Chen
+- **Customer**: Sanjyot Sathe
 - **Order**: ORD-002 ($79.99, Feb 1, 2025)
-- **Email**: michael.chen@email.com
+- **Email**: sanjyot.sathe@gmail.com
 - **Status**: ⚠️ Partial eligible (used condition, restocking fee applies)
 
 ### Scenario 3: High-Value Refund
@@ -251,7 +251,7 @@ To verify a customer:
 
 | Customer ID | Name | Email | Order Count |
 |------------|------|-------|-------------|
-| CUST-001 | Michael Chen | michael.chen@email.com | 3 |
+| CUST-001 | Sanjyot Sathe | sanjyot.sathe@gmail.com | 3 |
 | CUST-002 | Sarah Johnson | sarah.johnson@gmail.com | 2 |
 | CUST-003 | David Rodriguez | david.rodriguez@outlook.com | 2 |
 | CUST-004 | Emily Williams | emily.williams@yahoo.com | 1 |

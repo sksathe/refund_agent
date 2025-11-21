@@ -12,7 +12,7 @@ _sample_orders: Dict[str, Dict[str, Any]] = {
     "ORD001": {
         "order_id": "ORD001",
         "customer_id": "CUST001",
-        "order_date": "2025-01-15T10:30:00Z",
+        "order_date": "2025-11-15T10:30:00Z",
         "status": "delivered",
         "total_amount": 149.99,
         "currency": "USD",

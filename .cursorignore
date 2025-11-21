@@ -1,0 +1,38 @@
+# Cursor ignore file
+# Files listed here will be ignored by Cursor's file search and indexing
+
+# Allow .env file (negate .gitignore)
+!.env
+
+# Ignore other sensitive files
+*.key
+*.pem
+*.secret
+
+# Ignore cache and build directories
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+
+# Ignore virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+

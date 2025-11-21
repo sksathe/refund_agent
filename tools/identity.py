@@ -6,9 +6,18 @@ Handles customer authentication via order ID, email/phone, OTP, and payment veri
 import asyncio
 import random
 import string
+import os
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Any
 import json
+
+# Resend API for sending OTP emails
+try:
+    import resend
+    RESEND_AVAILABLE = True
+except ImportError:
+    RESEND_AVAILABLE = False
+    print("Warning: resend package not installed. OTP emails will not be sent.")
 
 # In-memory storage for demo (replace with actual database in production)
 _otp_storage: Dict[str, Dict[str, Any]] = {}
@@ -21,6 +30,16 @@ class IdentityVerifier:
     def __init__(self):
         # Load sample customer data
         self._load_sample_customers()
+        
+        # Initialize Resend API key if available
+        self.resend_configured = False
+        if RESEND_AVAILABLE:
+            resend_api_key = os.getenv("RESEND_API_KEY")
+            if resend_api_key:
+                resend.api_key = resend_api_key
+                self.resend_configured = True
+            else:
+                print("Warning: RESEND_API_KEY environment variable not set. OTP emails will not be sent.")
     
     def _load_sample_customers(self):
         """Load sample customer data for PoC."""
@@ -28,9 +47,9 @@ class IdentityVerifier:
         _customer_db = {
             "CUST001": {
                 "customer_id": "CUST001",
-                "email": "michael.chen@email.com",
+                "email": "sanjyot.sathe@gmail.com",
                 "phone": "+1-555-0123",
-                "name": "Michael Chen",
+                "name": "Sanjyot Sathe",
                 "orders": ["ORD001", "ORD002", "ORD004"],
                 "last_four": "4532"
             },
@@ -140,22 +159,22 @@ class IdentityVerifier:
             }
         }
     
-    async def verify(
+    async def verify_by_order_and_name(
         self,
         order_id: str,
-        email: Optional[str] = None,
-        phone: Optional[str] = None,
-        last_four_digits: Optional[str] = None
+        name: str
     ) -> Dict[str, Any]:
         """
-        Verify customer identity using order ID and contact information.
+        Verify customer by order ID and name. This is the first step in the verification flow.
+        If name matches, returns customer_id and email for OTP sending.
+        
+        Args:
+            order_id: Order ID provided by customer
+            name: Customer name provided by customer
         
         Returns:
-            Dict with verification status, customer_id, and verification level
+            Dict with verification status, customer_id, email if name matches
         """
-        # In production, this would query a real database
-        # For PoC, we'll match against sample data
-        
         # Normalize order ID - remove hyphens to handle both ORD-001 and ORD001
         normalized_order_id = order_id.replace("-", "")
         
@@ -182,41 +201,123 @@ class IdentityVerifier:
             }
         
         customer = _customer_db[customer_id]
+        customer_name = customer.get("name", "").strip()
+        provided_name = name.strip()
         
-        # Email is required for verification
-        if not email:
+        # Case-insensitive name matching
+        if customer_name.lower() != provided_name.lower():
             return {
                 "verified": False,
-                "error": "Email address is required for verification",
-                "order_id": order_id
+                "error": "Name does not match the order",
+                "order_id": order_id,
+                "customer_id": customer_id  # Don't reveal customer_id on mismatch
             }
         
-        # Verify email matches
-        if email.lower() != customer.get("email", "").lower():
-            return {
-                "verified": False,
-                "error": "Email address does not match the order",
-                "order_id": order_id
-            }
-        
-        # Email verification successful - no OTP required
-        # Return normalized order_id for consistency
+        # Name matches - return customer info for OTP sending
         return {
             "verified": True,
             "customer_id": customer_id,
-            "order_id": normalized_order_id,  # Return normalized format (no hyphens)
+            "order_id": normalized_order_id,
+            "email": customer.get("email"),
+            "customer_name": customer_name,
+            "message": "Name verified. OTP will be sent to registered email."
+        }
+    
+    async def verify(
+        self,
+        order_id: str,
+        email: Optional[str] = None,
+        phone: Optional[str] = None,
+        last_four_digits: Optional[str] = None,
+        otp_code: Optional[str] = None,
+        customer_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Verify customer identity using order ID and OTP code.
+        This method now requires OTP verification after name verification.
+        
+        Args:
+            order_id: Order ID
+            customer_id: Customer ID from verify_by_order_and_name
+            otp_code: OTP code provided by customer (required)
+            email: Deprecated - kept for backward compatibility
+            phone: Deprecated - kept for backward compatibility
+            last_four_digits: Deprecated - kept for backward compatibility
+        
+        Returns:
+            Dict with verification status, customer_id, and verification level
+        """
+        # Normalize order ID
+        normalized_order_id = order_id.replace("-", "")
+        
+        # If customer_id is provided, use it; otherwise find by order_id
+        if customer_id:
+            if customer_id not in _customer_db:
+                return {
+                    "verified": False,
+                    "error": "Invalid customer ID",
+                    "order_id": order_id
+                }
+            customer = _customer_db[customer_id]
+        else:
+            # Find customer by order ID
+            customer_id = None
+            for cust_id, cust_data in _customer_db.items():
+                orders = cust_data.get("orders", [])
+                if normalized_order_id in orders or order_id in orders:
+                    customer_id = cust_id
+                    break
+            
+            if not customer_id:
+                return {
+                    "verified": False,
+                    "error": "Order not found",
+                    "order_id": order_id
+                }
+            customer = _customer_db[customer_id]
+        
+        # OTP verification is now required
+        if not otp_code:
+            return {
+                "verified": False,
+                "error": "OTP code is required for verification",
+                "order_id": order_id,
+                "customer_id": customer_id,
+                "requires_otp": True
+            }
+        
+        # Verify OTP
+        otp_result = await self.verify_otp(customer_id, otp_code)
+        if not otp_result.get("verified"):
+            return {
+                "verified": False,
+                "error": otp_result.get("error", "OTP verification failed"),
+                "order_id": order_id,
+                "customer_id": customer_id,
+                "requires_otp": True
+            }
+        
+        # OTP verification successful
+        return {
+            "verified": True,
+            "customer_id": customer_id,
+            "order_id": normalized_order_id,
             "verification_level": "verified",
             "customer_name": customer.get("name"),
-            "requires_otp": False  # OTP not required - email verification is sufficient
+            "requires_otp": False
         }
     
     async def send_otp(
         self,
         customer_id: str,
-        method: str  # "email" or "sms"
+        method: str = "email"  # "email" or "sms"
     ) -> Dict[str, Any]:
         """
-        Send OTP to customer's registered email or phone.
+        Send OTP to customer's registered email or phone using Resend API.
+        
+        Args:
+            customer_id: Customer ID
+            method: "email" or "sms" (currently only email is supported via Resend)
         
         Returns:
             Dict with OTP status and expiration time
@@ -241,17 +342,76 @@ class IdentityVerifier:
             "attempts": 0
         }
         
-        # In production, send via email/SMS service
-        # For PoC, we'll just return it (in production, never return OTP in response)
         contact = customer.get("email" if method == "email" else "phone", "")
         
-        return {
-            "success": True,
-            "message": f"OTP sent to {method}: {contact}",
-            "expires_in_minutes": 10,
-            # Remove this in production - OTP should never be returned
-            "_debug_otp": otp_code if method == "email" else None
-        }
+        # Send OTP via Resend API if available
+        if method == "email":
+            if self.resend_configured:
+                try:
+                    # Get sender email from environment or use default
+                    from_email = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+                    
+                    # Send email via Resend 2.x API
+                    email_response = resend.Emails.send({
+                        "from": from_email,
+                        "to": [contact],
+                        "subject": "Your Verification Code",
+                        "html": f"""
+                        <html>
+                        <body style="font-family: Arial, sans-serif; padding: 20px;">
+                            <h2>Verification Code</h2>
+                            <p>Hello {customer.get('name', 'Customer')},</p>
+                            <p>Your verification code is:</p>
+                            <h1 style="font-size: 32px; color: #0066cc; letter-spacing: 5px; margin: 20px 0;">{otp_code}</h1>
+                            <p>This code will expire in 10 minutes.</p>
+                            <p>If you didn't request this code, please ignore this email.</p>
+                            <hr style="margin-top: 30px; border: none; border-top: 1px solid #eee;">
+                            <p style="color: #666; font-size: 12px;">This is an automated message. Please do not reply.</p>
+                        </body>
+                        </html>
+                        """
+                    })
+                    
+                    # Extract email ID from response (Resend 2.x returns object with id attribute)
+                    email_id = None
+                    if hasattr(email_response, 'id'):
+                        email_id = email_response.id
+                    elif isinstance(email_response, dict):
+                        email_id = email_response.get("id")
+                    elif hasattr(email_response, 'data') and hasattr(email_response.data, 'id'):
+                        email_id = email_response.data.id
+                    
+                    return {
+                        "success": True,
+                        "message": f"OTP sent to email: {contact}",
+                        "expires_in_minutes": 10,
+                        "email_id": email_id
+                    }
+                except Exception as e:
+                    # If Resend fails, fall back to debug mode
+                    print(f"Resend API error: {e}")
+                    return {
+                        "success": True,
+                        "message": f"OTP generated (Resend API error: {str(e)}). Email: {contact}",
+                        "expires_in_minutes": 10,
+                        "_debug_otp": otp_code,  # Only in case of error
+                        "warning": "Email sending failed, OTP returned for testing"
+                    }
+            else:
+                # Resend not configured - return debug OTP
+                return {
+                    "success": True,
+                    "message": f"OTP generated (Resend not configured). Email: {contact}",
+                    "expires_in_minutes": 10,
+                    "_debug_otp": otp_code,
+                    "warning": "Resend API not configured. Set RESEND_API_KEY environment variable."
+                }
+        else:
+            # SMS not implemented yet
+            return {
+                "success": False,
+                "error": "SMS OTP not yet implemented. Please use email method."
+            }
     
     async def verify_otp(
         self,

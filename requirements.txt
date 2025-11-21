@@ -6,6 +6,12 @@ mcp>=0.9.0
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 
+# Email service for OTP
+resend>=2.0.0
+
+# Environment variable management
+python-dotenv>=1.0.0
+
 # Standard library dependencies (usually included, but listed for clarity)
 # asyncio, json, os, uuid, datetime, pathlib, typing - all built-in
 
