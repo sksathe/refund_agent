@@ -135,19 +135,33 @@ The system uses a secure multi-step verification process:
 
 ### Running the Server
 
-#### Option 1: HTTP Server (for remote access via ngrok)
+#### Option 1: HTTP Server with ngrok (for ElevenLabs integration)
 
-```bash
-python mcp_server_http.py
-```
+1. **Start the HTTP server:**
+   ```bash
+   python mcp_server_http.py
+   ```
+   The server will start on `http://localhost:8000` by default.
 
-The server will start on `http://localhost:8000` by default.
+2. **Expose port 8000 via ngrok:**
+   ```bash
+   ngrok http 8000
+   ```
+   This will give you a public URL like `https://abc123.ngrok-free.app`
 
-**Endpoints:**
-- Health check: `http://localhost:8000/health`
-- List tools: `http://localhost:8000/tools`
-- MCP endpoint: `http://localhost:8000/mcp`
-- Tool call: `http://localhost:8000/tools/call`
+3. **Configure ElevenLabs MCP:**
+   - In your ElevenLabs agent settings, add the MCP server with:
+     - **Transport**: `https`
+     - **Server URL**: `https://your-ngrok-url.ngrok-free.app`
+     - **Endpoint**: `/mcp`
+   
+   The server exposes these endpoints:
+   - Health check: `http://localhost:8000/health`
+   - List tools: `http://localhost:8000/tools`
+   - MCP endpoint: `http://localhost:8000/mcp` (use this with ngrok URL)
+   - Tool call: `http://localhost:8000/tools/call`
+
+**Note:** When using ngrok, replace `localhost:8000` with your ngrok URL in the endpoints above.
 
 #### Option 2: stdio Server (for local integrations)
 
@@ -155,7 +169,7 @@ The server will start on `http://localhost:8000` by default.
 python mcp_server.py
 ```
 
-This server communicates via stdin/stdout, suitable for local MCP clients.
+This server communicates via stdin/stdout, suitable for local MCP clients that don't require HTTP.
 
 ### Testing
 
