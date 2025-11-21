@@ -347,7 +347,7 @@ Refund policies are configured in `mcp_config.json`:
 }
 ```
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 refund_agent/
@@ -370,7 +370,7 @@ refund_agent/
 └── README.md              # This file
 ```
 
-## 🔐 Security Considerations
+##  Security Considerations
 
 1. **API Keys**: Never commit `.env` files to version control
 2. **OTP Security**: OTPs expire after 10 minutes and have 3 attempt limit
@@ -378,7 +378,7 @@ refund_agent/
 4. **CORS**: Restrict CORS origins in production (currently allows all)
 5. **Rate Limiting**: Implement rate limiting for production use
 
-## 🧪 Testing
+##  Testing
 
 ### Test Sample Customer
 
@@ -409,35 +409,5 @@ See `SAMPLE_CUSTOMERS.md` for more test scenarios.
 
 3. **Check email** for OTP code, then verify it.
 
-## 📚 Additional Documentation
 
-- **[RESEND_SETUP.md](RESEND_SETUP.md)** - Detailed Resend API setup guide
-- **[ELEVENLABS_SETUP.md](ELEVENLABS_SETUP.md)** - ElevenLabs integration guide
-- **[NGROK_SETUP.md](NGROK_SETUP.md)** - ngrok setup for remote access
-- **[SAMPLE_CUSTOMERS.md](SAMPLE_CUSTOMERS.md)** - Test customer data
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
 
-## 🚧 Production Considerations
-
-Before deploying to production:
-
-- [ ] Replace in-memory storage with a database
-- [ ] Set up proper domain verification for Resend
-- [ ] Configure CORS to restrict origins
-- [ ] Implement rate limiting
-- [ ] Set up monitoring and alerting
-- [ ] Configure proper logging
-- [ ] Use HTTPS for all connections
-- [ ] Set up backup and recovery procedures
-
-## 📝 License
-
-[Add your license here]
-
-## 🤝 Contributing
-
-[Add contribution guidelines here]
-
-## 📧 Support
-
-For issues and questions, please [open an issue](link-to-issues) or contact [your contact info].
